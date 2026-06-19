@@ -1,0 +1,8 @@
+node_modules/
+backend/dist/
+*.log
+.env
+frontend.log
+backend.log
+*.json
+UTF8
