@@ -1,0 +1,1052 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  STUDENT
+  MODERATOR
+  ADMIN
+}
+
+enum LevelType {
+  SEED
+  GROWTH
+  SUCCESS
+}
+
+enum PostType {
+  QUESTION
+  TESTIMONY
+  MOTIVATION
+  LEARNING_TIP
+}
+
+enum PostStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum WritingQuestionType {
+  TRANSLATE_DARI_ENGLISH
+  SENTENCE_COMPLETION
+  TYPE_ANSWER
+}
+
+enum SpeakingQuestionType {
+  LISTEN_REPEAT
+  QUESTION_ANSWER
+}
+
+enum ListeningQuestionType {
+  MULTIPLE_CHOICE
+  FILL_BLANK
+  SHORT_ANSWER
+}
+
+enum ReadingQuestionType {
+  MULTIPLE_CHOICE
+  TRUE_FALSE
+  MATCHING
+}
+
+enum QuizQuestionType {
+  READING
+  SPEAKING
+  LISTENING
+  WRITING
+  VOCABULARY
+  PRONUNCIATION
+}
+
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum MediaType {
+  LESSON_VIDEO
+  SPEAKING_VIDEO
+  SPEAKING_AUDIO
+  LISTENING_AUDIO
+  DIALOGUE_AUDIO
+  VOCABULARY_AUDIO
+  PRONUNCIATION_AUDIO
+  INSTRUCTIONAL_VIDEO
+}
+
+enum ExerciseType {
+  MULTIPLE_CHOICE
+  MATCHING
+  LISTENING
+  TYPING
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum PlanType {
+  SEED
+  GROWTH
+  SUCCESS
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+  PENDING
+}
+
+enum PaymentMethod {
+  PAYPAL
+  BANK_TRANSFER
+  STRIPE
+  FREE
+}
+
+// ===================== USER & AUTH =====================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String?
+  fullName      String
+  avatarUrl     String?
+  googleId      String?   @unique
+  role          UserRole  @default(STUDENT)
+  isActive      Boolean   @default(true)
+  xp            Int       @default(0)
+  knowledgeCoins Int      @default(0)
+  currentLevelId String?
+  dailyStreak   Int       @default(0)
+  lastActiveDate DateTime?
+  refreshToken  String?
+  stripeCustomerId String?   @unique
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  currentLevel        Level?              @relation(fields: [currentLevelId], references: [id])
+  progress            UserProgress[]
+  lessonAttempts      LessonAttempt[]
+  savedVocabulary     SavedVocabulary[]
+  communityPosts      CommunityPost[]
+  comments            Comment[]
+  likes               Like[]
+  reports             Report[]
+  userBadges          UserBadge[]
+  userAchievements    UserAchievement[]
+  leaderboardEntries  Leaderboard[]
+  payments            Payment[]
+  invoices            Invoice[]
+  certificates        Certificate[]
+  streakHistory       StreakHistory[]
+  scholarshipCodes    ScholarshipCode[]    @relation("CreatedScholarshipCodes")
+  subscriptions       Subscription[]
+  subscriptionHistory SubscriptionHistory[]
+  writingAttempts     WritingAttempt[]
+  speakingAttempts    SpeakingAttempt[]
+  speakingRecordings  SpeakingRecording[]
+  listeningAttempts   ListeningAttempt[]
+  readingAttempts     ReadingAttempt[]
+  pronunciationAttempts PronunciationAttempt[]
+  quizAttempts        QuizAttempt[]
+
+  @@map("users")
+}
+
+// ===================== LEVELS & COURSES & UNITS & LESSONS =====================
+
+model Level {
+  id         String    @id @default(cuid())
+  name       String
+  type       LevelType
+  dariName   String
+  description String
+  xpRequired Int       @default(0)
+  price      Float?
+  order      Int
+  isActive   Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  users     User[]
+  courses   Course[]
+
+  @@map("levels")
+}
+
+model Course {
+  id          String        @id @default(cuid())
+  title       String
+  dariTitle   String
+  description String
+  dariDescription String?
+  thumbnailUrl String?
+  price       Float?        @default(0)
+  world       String
+  order       Int
+  levelId     String
+  passingScore Int          @default(70)
+  status      ContentStatus @default(DRAFT)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  level   Level  @relation(fields: [levelId], references: [id])
+  units   Unit[]
+  media   Media[]
+
+  @@map("courses")
+}
+
+model Unit {
+  id          String        @id @default(cuid())
+  title       String
+  dariTitle   String?
+  description String
+  dariDescription String?
+  order       Int
+  courseId    String
+  status      ContentStatus @default(DRAFT)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  course  Course   @relation(fields: [courseId], references: [id])
+  lessons Lesson[]
+  media   Media[]
+
+  @@map("units")
+}
+
+model Lesson {
+  id              String        @id @default(cuid())
+  title           String
+  dariTitle       String
+  description     String
+  dariDescription String?
+  order           Int
+  unitId          String?
+  passingScore    Int           @default(70)
+  status          ContentStatus @default(DRAFT)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  unit                    Unit?                   @relation(fields: [unitId], references: [id])
+  vocabularies            Vocabulary[]
+  exercises               Exercise[]
+  userProgress            UserProgress[]
+  lessonAttempts          LessonAttempt[]
+  writingQuestions        WritingQuestion[]
+  speakingQuestions       SpeakingQuestion[]
+  listeningQuestions      ListeningQuestion[]
+  readingActivities       ReadingActivity[]
+  pronunciationActivities PronunciationActivity[]
+  quizzes                 Quiz[]
+  dialogues               Dialogue[]
+  media                   Media[]
+
+  @@map("lessons")
+}
+
+// ===================== VOCABULARY =====================
+
+model Vocabulary {
+  id            String   @id @default(cuid())
+  englishWord   String
+  dariTranslation String
+  pronunciationGuide String?
+  exampleSentence String?
+  dariSentence  String?
+  lessonId      String
+  createdAt     DateTime @default(now())
+
+  lesson         Lesson           @relation(fields: [lessonId], references: [id])
+  savedBy        SavedVocabulary[]
+  audio          VocabularyAudio?
+
+  @@map("vocabularies")
+}
+
+model VocabularyAudio {
+  id        String   @id @default(cuid())
+  vocabularyId String @unique
+  audioUrl  String
+  fileSize  Int?
+  duration  Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vocabulary Vocabulary @relation(fields: [vocabularyId], references: [id])
+
+  @@map("vocabulary_audio")
+}
+
+model SavedVocabulary {
+  id           String   @id @default(cuid())
+  userId       String
+  vocabularyId String
+  savedAt      DateTime @default(now())
+
+  user       User       @relation(fields: [userId], references: [id])
+  vocabulary Vocabulary @relation(fields: [vocabularyId], references: [id])
+
+  @@unique([userId, vocabularyId])
+  @@map("saved_vocabularies")
+}
+
+// ===================== READING =====================
+
+model ReadingActivity {
+  id        String   @id @default(cuid())
+  lessonId  String
+  title     String
+  dariTitle String?
+  passage   String
+  dariPassage String?
+  imageUrl  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lesson    Lesson           @relation(fields: [lessonId], references: [id])
+  questions ReadingQuestion[]
+
+  @@map("reading_activities")
+}
+
+model ReadingQuestion {
+  id            String             @id @default(cuid())
+  activityId    String
+  type          ReadingQuestionType
+  question      String
+  dariQuestion  String?
+  options       Json?
+  correctAnswer String
+  points        Int                @default(10)
+  order         Int
+  createdAt     DateTime           @default(now())
+
+  activity ReadingActivity  @relation(fields: [activityId], references: [id])
+  attempts  ReadingAttempt[]
+
+  @@map("reading_questions")
+}
+
+model ReadingAttempt {
+  id         String   @id @default(cuid())
+  userId     String
+  questionId String
+  answer     String
+  isCorrect  Boolean
+  score      Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  user     User           @relation(fields: [userId], references: [id])
+  question ReadingQuestion @relation(fields: [questionId], references: [id])
+
+  @@map("reading_attempts")
+}
+
+// ===================== PRONUNCIATION =====================
+
+model PronunciationActivity {
+  id            String   @id @default(cuid())
+  lessonId      String
+  vocabularyId  String?
+  word          String
+  dariWord      String?
+  audioUrl      String?
+  points        Int      @default(10)
+  order         Int
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  lesson    Lesson                @relation(fields: [lessonId], references: [id])
+  attempts  PronunciationAttempt[]
+
+  @@map("pronunciation_activities")
+}
+
+model PronunciationAttempt {
+  id         String   @id @default(cuid())
+  userId     String
+  activityId String
+  audioUrl   String?
+  transcript String?
+  accuracy   Float    @default(0)
+  score      Int      @default(0)
+  completed  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  user     User                  @relation(fields: [userId], references: [id])
+  activity PronunciationActivity @relation(fields: [activityId], references: [id])
+
+  @@map("pronunciation_attempts")
+}
+
+// ===================== QUIZ =====================
+
+model Quiz {
+  id            String   @id @default(cuid())
+  lessonId      String
+  title         String
+  dariTitle     String?
+  passingScore  Int      @default(70)
+  timeLimit     Int?     @default(300)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  lesson    Lesson           @relation(fields: [lessonId], references: [id])
+  questions QuizQuestion[]
+  attempts  QuizAttempt[]
+
+  @@map("quizzes")
+}
+
+model QuizQuestion {
+  id            String          @id @default(cuid())
+  quizId        String
+  sourceType    QuizQuestionType
+  question      String
+  dariQuestion  String?
+  options       Json?
+  correctAnswer String
+  points        Int             @default(10)
+  order         Int
+  createdAt     DateTime        @default(now())
+
+  quiz     Quiz         @relation(fields: [quizId], references: [id])
+  attempts QuizAttempt[]
+
+  @@map("quiz_questions")
+}
+
+model QuizAttempt {
+  id         String   @id @default(cuid())
+  userId     String
+  quizId     String
+  questionId String
+  answer     String
+  isCorrect  Boolean
+  score      Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  user     User        @relation(fields: [userId], references: [id])
+  question QuizQuestion @relation(fields: [questionId], references: [id])
+  quiz     Quiz        @relation(fields: [quizId], references: [id])
+
+  @@map("quiz_attempts")
+}
+
+// ===================== WRITING =====================
+
+model WritingQuestion {
+  id            String               @id @default(cuid())
+  lessonId      String
+  type          WritingQuestionType
+  question      String
+  dariQuestion  String?
+  options       Json?
+  correctAnswer String
+  points        Int                  @default(10)
+  order         Int
+  createdAt     DateTime             @default(now())
+
+  lesson   Lesson           @relation(fields: [lessonId], references: [id])
+  attempts WritingAttempt[]
+
+  @@map("writing_questions")
+}
+
+model WritingAttempt {
+  id         String   @id @default(cuid())
+  userId     String
+  questionId String
+  answer     String
+  isCorrect  Boolean
+  score      Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  user     User            @relation(fields: [userId], references: [id])
+  question WritingQuestion @relation(fields: [questionId], references: [id])
+
+  @@map("writing_attempts")
+}
+
+// ===================== SPEAKING =====================
+
+model SpeakingQuestion {
+  id            String               @id @default(cuid())
+  lessonId      String
+  type          SpeakingQuestionType
+  question      String
+  dariQuestion  String?
+  expectedAnswer String?
+  audioUrl      String?
+  videoUrl      String?
+  points        Int                  @default(10)
+  order         Int
+  createdAt     DateTime             @default(now())
+
+  lesson   Lesson            @relation(fields: [lessonId], references: [id])
+  attempts SpeakingAttempt[]
+
+  @@map("speaking_questions")
+}
+
+model SpeakingAttempt {
+  id         String   @id @default(cuid())
+  userId     String
+  questionId String
+  transcript String?
+  audioUrl   String?
+  accuracy   Float    @default(0)
+  pronunciationScore Float @default(0)
+  score      Int      @default(0)
+  completed  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  user     User             @relation(fields: [userId], references: [id])
+  question SpeakingQuestion @relation(fields: [questionId], references: [id])
+
+  @@map("speaking_attempts")
+}
+
+model SpeakingRecording {
+  id         String   @id @default(cuid())
+  userId     String
+  attemptId  String?
+  audioUrl   String
+  duration   Int?
+  fileSize   Int?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("speaking_recordings")
+}
+
+// ===================== LISTENING =====================
+
+model ListeningQuestion {
+  id            String                @id @default(cuid())
+  lessonId      String
+  type          ListeningQuestionType
+  question      String
+  dariQuestion  String?
+  audioUrl      String
+  options       Json?
+  correctAnswer String
+  points        Int                   @default(10)
+  order         Int
+  createdAt     DateTime              @default(now())
+
+  lesson   Lesson             @relation(fields: [lessonId], references: [id])
+  attempts ListeningAttempt[]
+
+  @@map("listening_questions")
+}
+
+model ListeningAttempt {
+  id         String   @id @default(cuid())
+  userId     String
+  questionId String
+  answer     String
+  isCorrect  Boolean
+  score      Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  user     User              @relation(fields: [userId], references: [id])
+  question ListeningQuestion @relation(fields: [questionId], references: [id])
+
+  @@map("listening_attempts")
+}
+
+// ===================== DIALOGUES =====================
+
+model Dialogue {
+  id        String   @id @default(cuid())
+  lessonId  String
+  title     String
+  dariTitle String?
+  createdAt DateTime @default(now())
+
+  lesson Lesson         @relation(fields: [lessonId], references: [id])
+  lines  DialogueLine[]
+
+  @@map("dialogues")
+}
+
+model DialogueLine {
+  id         String   @id @default(cuid())
+  dialogueId String
+  speaker    String
+  english    String
+  dari       String?
+  audioUrl   String?
+  order      Int
+  createdAt  DateTime @default(now())
+
+  dialogue Dialogue @relation(fields: [dialogueId], references: [id])
+
+  @@map("dialogue_lines")
+}
+
+// ===================== EXERCISES (Legacy) =====================
+
+model Exercise {
+  id          String       @id @default(cuid())
+  type        ExerciseType
+  question    String
+  dariQuestion String?
+  options     Json?
+  correctAnswer String
+  points      Int          @default(10)
+  lessonId    String
+  order       Int
+  createdAt   DateTime     @default(now())
+
+  lesson       Lesson           @relation(fields: [lessonId], references: [id])
+  attempts     LessonAttempt[]
+
+  @@map("exercises")
+}
+
+// ===================== PROGRESS =====================
+
+model UserProgress {
+  id        String   @id @default(cuid())
+  userId    String
+  lessonId  String
+  completed Boolean  @default(false)
+  score     Int      @default(0)
+  xpEarned  Int      @default(0)
+  completedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id])
+  lesson Lesson @relation(fields: [lessonId], references: [id])
+
+  @@unique([userId, lessonId])
+  @@map("user_progress")
+}
+
+model LessonAttempt {
+  id         String   @id @default(cuid())
+  userId     String
+  lessonId   String
+  exerciseId String?
+  score      Int      @default(0)
+  accuracy   Float    @default(0)
+  xpEarned   Int      @default(0)
+  completed  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  user     User      @relation(fields: [userId], references: [id])
+  lesson   Lesson    @relation(fields: [lessonId], references: [id])
+  exercise Exercise? @relation(fields: [exerciseId], references: [id])
+
+  @@map("lesson_attempts")
+}
+
+// ===================== COMMUNITY =====================
+
+model CommunityPost {
+  id          String    @id @default(cuid())
+  title       String
+  content     String
+  dariContent String?
+  type        PostType
+  status      PostStatus @default(PENDING)
+  userId      String
+  imageUrl    String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id])
+  comments Comment[]
+  likes    Like[]
+  reports  Report[]
+
+  @@map("community_posts")
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User          @relation(fields: [userId], references: [id])
+  post CommunityPost @relation(fields: [postId], references: [id])
+
+  @@map("comments")
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+
+  user User          @relation(fields: [userId], references: [id])
+  post CommunityPost @relation(fields: [postId], references: [id])
+
+  @@unique([userId, postId])
+  @@map("likes")
+}
+
+model Report {
+  id          String   @id @default(cuid())
+  reason      String
+  userId      String
+  postId      String
+  createdAt   DateTime @default(now())
+
+  user User          @relation(fields: [userId], references: [id])
+  post CommunityPost @relation(fields: [postId], references: [id])
+
+  @@map("reports")
+}
+
+// ===================== GAMIFICATION =====================
+
+model Badge {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  iconUrl     String?
+  xpReward    Int      @default(0)
+  criteria    Json
+  createdAt   DateTime @default(now())
+
+  userBadges UserBadge[]
+
+  @@map("badges")
+}
+
+model UserBadge {
+  id        String   @id @default(cuid())
+  userId    String
+  badgeId   String
+  earnedAt  DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id])
+  badge Badge @relation(fields: [badgeId], references: [id])
+
+  @@unique([userId, badgeId])
+  @@map("user_badges")
+}
+
+model Achievement {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  iconUrl     String?
+  xpReward    Int      @default(0)
+  criteria    Json
+  createdAt   DateTime @default(now())
+
+  userAchievements UserAchievement[]
+
+  @@map("achievements")
+}
+
+model UserAchievement {
+  id            String   @id @default(cuid())
+  userId        String
+  achievementId String
+  earnedAt      DateTime @default(now())
+
+  user        User        @relation(fields: [userId], references: [id])
+  achievement Achievement @relation(fields: [achievementId], references: [id])
+
+  @@unique([userId, achievementId])
+  @@map("user_achievements")
+}
+
+model Leaderboard {
+  id        String   @id @default(cuid())
+  userId    String
+  xpTotal   Int      @default(0)
+  rank      Int?
+  weekStart DateTime?
+  weekEnd   DateTime?
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId])
+  @@map("leaderboard")
+}
+
+model StreakHistory {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime
+  xpEarned  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, date])
+  @@map("streak_history")
+}
+
+// ===================== SUBSCRIPTIONS & PAYMENTS =====================
+
+model Plan {
+  id              String    @id @default(cuid())
+  name            String
+  type            PlanType
+  price           Float     @default(0)
+  currency        String    @default("USD")
+  durationDays    Int       @default(30)
+  features        Json?
+  isActive        Boolean   @default(true)
+  stripeProductId String?   @unique
+  stripePriceId   String?   @unique
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  subscriptions Subscription[]
+  payments        Payment[]
+
+  @@map("plans")
+}
+
+model Subscription {
+  id                    String             @id @default(cuid())
+  userId                String
+  planId                String
+  status                SubscriptionStatus @default(ACTIVE)
+  startDate             DateTime           @default(now())
+  endDate               DateTime
+  cancelledAt           DateTime?
+  autoRenew             Boolean            @default(false)
+  
+  // Stripe fields
+  stripeCustomerId      String?
+  stripeSubscriptionId  String?            @unique
+  stripePriceId         String?
+  stripeProductId       String?
+  currentPeriodStart    DateTime?
+  currentPeriodEnd      DateTime?
+  cancelAtPeriodEnd     Boolean            @default(false)
+  
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+  plan Plan @relation(fields: [planId], references: [id])
+  invoices Invoice[]
+  history SubscriptionHistory[]
+
+  @@unique([userId, planId])
+  @@map("subscriptions")
+}
+
+model Payment {
+  id                      String        @id @default(cuid())
+  userId                  String
+  amount                  Float
+  currency                String        @default("USD")
+  status                  PaymentStatus @default(PENDING)
+  paymentMethod           PaymentMethod?
+  paypalOrderId           String?
+  paypalCaptureId         String?
+  scholarshipCodeId       String?
+  levelId                 String?
+  planId                  String?
+  receiptUrl              String?
+  adminApproved           Boolean?
+  approvedBy              String?
+  approvedAt              DateTime?
+  
+  // Stripe fields
+  stripePaymentIntentId   String?       @unique
+  stripeCheckoutSessionId String?       @unique
+  stripeInvoiceId         String?       @unique
+  
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
+
+  user            User             @relation(fields: [userId], references: [id])
+  scholarshipCode ScholarshipCode? @relation(fields: [scholarshipCodeId], references: [id])
+  plan            Plan?            @relation(fields: [planId], references: [id])
+  receipts        PaymentReceipt[]
+  transactions    PaymentTransaction[]
+  invoice         Invoice?
+
+  @@map("payments")
+}
+
+model Invoice {
+  id                    String        @id @default(cuid())
+  userId                String
+  subscriptionId        String?
+  paymentId             String?       @unique
+  stripeInvoiceId       String        @unique
+  stripeSubscriptionId  String?
+  stripeCustomerId      String?
+  hostedInvoiceUrl      String?
+  invoicePdf            String?
+  amountDue             Float         @default(0)
+  amountPaid            Float         @default(0)
+  currency              String        @default("USD")
+  status                String
+  dueDate               DateTime?
+  periodStart           DateTime?
+  periodEnd             DateTime?
+  paidAt                DateTime?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id])
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id])
+  payment      Payment?      @relation(fields: [paymentId], references: [id])
+
+  @@map("invoices")
+}
+
+model WebhookEvent {
+  id            String   @id @default(cuid())
+  stripeEventId String   @unique
+  type          String
+  processed     Boolean  @default(false)
+  payload       Json
+  error         String?
+  receivedAt    DateTime @default(now())
+  processedAt   DateTime?
+
+  @@map("webhook_events")
+}
+
+model SubscriptionHistory {
+  id             String   @id @default(cuid())
+  subscriptionId String
+  userId         String
+  fromStatus     SubscriptionStatus?
+  toStatus       SubscriptionStatus
+  reason         String
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id])
+  user         User         @relation(fields: [userId], references: [id])
+
+  @@map("subscription_history")
+}
+
+model PaymentReceipt {
+  id         String   @id @default(cuid())
+  paymentId  String
+  receiptUrl String
+  notes      String?
+  verified   Boolean  @default(false)
+  uploadedAt DateTime @default(now())
+
+  payment Payment @relation(fields: [paymentId], references: [id])
+
+  @@map("payment_receipts")
+}
+
+model PaymentTransaction {
+  id              String   @id @default(cuid())
+  paymentId       String
+  paypalOrderId   String?
+  paypalCaptureId String?
+  status          String
+  amount          Float
+  currency        String   @default("USD")
+  response        Json?
+  createdAt       DateTime @default(now())
+
+  payment Payment @relation(fields: [paymentId], references: [id])
+
+  @@map("payment_transactions")
+}
+
+model ScholarshipCode {
+  id         String   @id @default(cuid())
+  code       String   @unique
+  discount   Float
+  maxUses    Int      @default(1)
+  usedCount  Int      @default(0)
+  isActive   Boolean  @default(true)
+  createdById String
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime?
+
+  createdBy User      @relation("CreatedScholarshipCodes", fields: [createdById], references: [id])
+  payments  Payment[]
+
+  @@map("scholarship_codes")
+}
+
+// ===================== MEDIA (Unified Media System) =====================
+
+model Media {
+  id         String    @id @default(cuid())
+  mediaType  MediaType
+  fileUrl    String
+  courseId   String?
+  unitId     String?
+  lessonId   String?
+  activityId String?
+  createdBy  String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  course Course? @relation(fields: [courseId], references: [id])
+  unit   Unit?   @relation(fields: [unitId], references: [id])
+  lesson Lesson? @relation(fields: [lessonId], references: [id])
+
+  @@map("media")
+}
+
+// ===================== CERTIFICATES =====================
+
+model Certificate {
+  id              String   @id @default(cuid())
+  certificateId   String   @unique
+  userId          String
+  levelId         String?
+  courseId        String?
+  title           String
+  fullName        String
+  completionDate  DateTime @default(now())
+  qrCodeUrl       String?
+  pdfUrl          String?
+  isVerified      Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  user         User                    @relation(fields: [userId], references: [id])
+  verifications CertificateVerification[]
+
+  @@map("certificates")
+}
+
+model CertificateVerification {
+  id            String   @id @default(cuid())
+  certificateId String
+  verifiedAt    DateTime @default(now())
+  ipAddress     String?
+  userAgent     String?
+
+  certificate Certificate @relation(fields: [certificateId], references: [id])
+
+  @@map("certificate_verifications")
+}
